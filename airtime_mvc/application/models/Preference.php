@@ -1,7 +1,6 @@
 <?php
 
 require_once 'StreamSetting.php';
-require_once 'Cache.php';
 
 class Application_Model_Preference
 {
@@ -26,7 +25,6 @@ class Application_Model_Preference
      */
     private static function setValue($key, $value, $isUserValue = false)
     {
-        $cache = new Cache();
         $con = Propel::getConnection(CcPrefPeer::DATABASE_NAME);
 
         //We are using row-level locking in Postgres via "FOR UPDATE" instead of a transaction here
@@ -112,8 +110,6 @@ class Application_Model_Preference
             Logging::info("Database error: ".$e->getMessage());
             exit;
         }
-
-        $cache->store($key, $value, $isUserValue, $userId);
     }
 
     /**
@@ -146,8 +142,6 @@ class Application_Model_Preference
      */
     private static function getValue($key, $isUserValue = false, $forceDefault = false)
     {
-        $cache = new Cache();
-        
         try {
             
             $userId = null;
@@ -159,10 +153,6 @@ class Application_Model_Preference
                 }
             }
 
-            // If the value is already cached, return it
-            $res = $cache->fetch($key, $isUserValue, $userId);
-            if ($res !== false) return $res;
-           
             //Check if key already exists
             $sql = "SELECT COUNT(*) FROM cc_pref"
             ." WHERE keystr = :key";
@@ -201,7 +191,6 @@ class Application_Model_Preference
                 $res = ($result !== false) ? $result : "";
             }
             
-            $cache->store($key, $res, $isUserValue, $userId);
             return $res;
         } 
         catch (Exception $e) {
