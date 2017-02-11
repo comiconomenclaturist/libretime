@@ -187,8 +187,6 @@ class Manager(Loggable):
             try: mmp.create_dir(path)
             except mmp.FailedToCreateDir as e: self.unexpected_exception(e)
 
-        os.chmod(store_paths['organize'], 0775) 
-
         self.set_problem_files_path(store_paths['problem_files'])
         self.set_imported_path(store_paths['imported'])
         self.set_recorded_path(store_paths['recorded'])
