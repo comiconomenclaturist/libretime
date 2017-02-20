@@ -51,11 +51,11 @@ class Config {
         }
 
         // Parse separate conf file for cloud storage values
-        $cloudStorageConfig = "/etc/airtime-saas/".$CC_CONFIG['dev_env']."/cloud_storage.conf";
+        $cloudStorageConfig = "/etc/airtime/".$CC_CONFIG['dev_env']."/cloud_storage.conf";
         if (!file_exists($cloudStorageConfig)) {
             // If the dev env specific cloud_storage.conf doesn't exist default
             // to the production cloud_storage.conf
-            $cloudStorageConfig = "/etc/airtime-saas/production/cloud_storage.conf";
+            $cloudStorageConfig = "/etc/airtime/production/cloud_storage.conf";
         }
         $cloudStorageValues = parse_ini_file($cloudStorageConfig, true);
         
@@ -86,11 +86,11 @@ class Config {
         $CC_CONFIG['soundcloud-connection-retries'] = $values['soundcloud']['connection_retries'];
         $CC_CONFIG['soundcloud-connection-wait'] = $values['soundcloud']['time_between_retries'];
 
-        $globalAirtimeConfig = "/etc/airtime-saas/".$CC_CONFIG['dev_env']."/airtime.conf";
+        $globalAirtimeConfig = "/etc/airtime/".$CC_CONFIG['dev_env']."/airtime.conf";
         if (!file_exists($globalAirtimeConfig)) {
             // If the dev env specific airtime.conf doesn't exist default
             // to the production airtime.conf
-            $globalAirtimeConfig = "/etc/airtime-saas/production/airtime.conf";
+            $globalAirtimeConfig = "/etc/airtime/production/airtime.conf";
         }
         $globalAirtimeConfigValues = parse_ini_file($globalAirtimeConfig, true);
         $CC_CONFIG['soundcloud-client-id'] = $globalAirtimeConfigValues['soundcloud']['soundcloud_client_id'];

@@ -88,11 +88,11 @@ class Application_Model_RabbitMq
         if (array_key_exists("dev_env", $CC_CONFIG)) {
             $devEnv = $CC_CONFIG["dev_env"];
         }
-        $rmq_config_path = "/etc/airtime-saas/".$devEnv."/rabbitmq-analyzer.ini";
+        $rmq_config_path = "/etc/airtime/".$devEnv."/rabbitmq-analyzer.ini";
         if (!file_exists($rmq_config_path)) {
             // If the dev env specific rabbitmq-analyzer.ini doesn't exist default
             // to the production rabbitmq-analyzer.ini
-            $rmq_config_path = "/etc/airtime-saas/production/rabbitmq-analyzer.ini";
+            $rmq_config_path = "/etc/airtime/production/rabbitmq-analyzer.ini";
         }
         return $rmq_config_path;
     }

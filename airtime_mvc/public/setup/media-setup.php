@@ -26,7 +26,7 @@ class MediaSetup extends Setup {
 
     const MEDIA_FOLDER = "mediaFolder";
     const AIRTIME_CONF_PATH = "/etc/airtime/airtime.conf";
-    const RMQ_INI_BASE_PATH = "/etc/airtime-saas/";
+    const RMQ_INI_BASE_PATH = "/etc/airtime/";
     const RMQ_INI_FILE_NAME = "rabbitmq-analyzer.ini";
 
     static $path;

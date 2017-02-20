@@ -58,7 +58,7 @@ If you run into issues getting Celery to accept tasks from Airtime:
     2) Check the log file (/var/log/airtime/airtime-celery[-DEV_ENV].log) to make sure Celery started correctly.
 
     3) Check your /etc/airtime/airtime.conf rabbitmq settings. Make sure the settings here align with
-       /etc/airtime-saas/production/rabbitmq.ini.
+       /etc/airtime/production/rabbitmq.ini.
 
     4) Check RabbitMQ to make sure the celeryresults and task queues were created in the correct vhost.
 

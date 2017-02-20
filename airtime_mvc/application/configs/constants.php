@@ -106,7 +106,7 @@ define("WHMCS_API_URL", "https://account.sourcefabric.com/includes/api.php");
 define("SUBDOMAIN_WHMCS_CUSTOM_FIELD_NAME", "Choose your domain");
 
 //Sentry error logging
-define('SENTRY_CONFIG_PATH', '/etc/airtime-saas/sentry.airtime_web.ini');
+define('SENTRY_CONFIG_PATH', '/etc/airtime/sentry.airtime_web.ini');
 
 //Provisioning status
 define('PROVISIONING_STATUS_SUSPENDED' , 'Suspended');
