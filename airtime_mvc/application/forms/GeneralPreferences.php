@@ -1,5 +1,7 @@
-    <?php
+<?php
 
+// this is not getting loaded by autloading since it has a classname
+// that makes it clash with how zf1 expects to load plugins.
 require_once 'customfilters/ImageSize.php';
 
 class Application_Form_GeneralPreferences extends Zend_Form_SubForm
@@ -116,6 +118,13 @@ class Application_Form_GeneralPreferences extends Zend_Form_SubForm
                                                         'class' => 'radio-inline-list',
                                         ));
         $this->addElement($third_party_api);
+
+        $allowedCorsUrlsValue = Application_Model_Preference::GetAllowedCorsUrls();
+        $allowedCorsUrls = new Zend_Form_Element_Textarea('allowedCorsUrls');
+        $allowedCorsUrls->setLabel(_('Allowed CORS URLs'));
+        $allowedCorsUrls->setDescription(_('Remote URLs that are allowed to access this LibreTime instance in a browser. One URL per line.'));
+        $allowedCorsUrls->setValue($allowedCorsUrlsValue);
+        $this->addElement($allowedCorsUrls);
 
         $locale = new Zend_Form_Element_Select("locale");
         $locale->setLabel(_("Default Language"));

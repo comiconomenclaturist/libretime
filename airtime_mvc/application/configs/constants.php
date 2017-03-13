@@ -1,31 +1,30 @@
 <?php
 
-define('PRODUCT_NAME'       , 'Airtime');
-define('PRODUCT_SITE_URL'   , 'http://airtime.sourcefabric.org');
+define('PRODUCT_NAME'       , 'LibreTime');
+define('PRODUCT_SITE_URL'   , 'http://libretime.org');
 
-define('SAAS_PRODUCT_BRANDING_NAME', 'Airtime Pro');
-define('SAAS_LOGIN_REFERRER', 'https://www.airtime.pro/');
+define('SAAS_PRODUCT_BRANDING_NAME', 'LibreTime');
+define('SAAS_LOGIN_REFERRER', 'http://libretime.org');
 
-define('COMPANY_NAME'       , 'Sourcefabric');
-define('COMPANY_SUFFIX'     , 'z.ú.');
-define('COMPANY_SITE'       , 'Sourcefabric.org');
-define('COMPANY_SITE_URL'   , 'http://sourcefabric.org/');
-define('SUPPORT_EMAIL_ADDRESS', "help@sourcefabric.org");
+define('COMPANY_NAME'       , 'LibreTime Community');
+define('COMPANY_SUFFIX'     , '');
+define('COMPANY_SITE'       , 'libretime.org');
+define('COMPANY_SITE_URL'   , 'http://libretime.org');
+define('SUPPORT_ADDRESS'    , 'https://github.com/LibreTime/libretime/issues');
 
 define("AIRTIMEPRO_API_URL", "https://account.sourcefabric.com:5001/api/");
 
 define('HELP_URL'                   , 'http://help.sourcefabric.org/');
-define('FAQ_URL'                    , 'https://sourcefabricberlin.zendesk.com/hc/en-us/sections/200994309-Airtime-FAQ');
-define('WHOS_USING_URL'             , 'http://sourcefabric.org/en/airtime/whosusing');
-define('TERMS_AND_CONDITIONS_URL'   , 'http://www.sourcefabric.org/en/about/policy/');
-define('PRIVACY_POLICY_URL'         , 'http://www.sourcefabric.org/en/about/policy/');
-define('USER_MANUAL_URL'            , 'http://sourcefabric.booktype.pro/airtime-pro-for-broadcasters');
-define('ABOUT_AIRTIME_URL'          , 'https://www.airtime.pro/support/');
-define('AIRTIME_TRANSIFEX_URL'      , 'https://www.transifex.com/sourcefabric/airtime/');
-define('WHMCS_PASSWORD_RESET_URL'   , 'https://account.sourcefabric.com/pwreset.php');
-define('SUPPORT_TICKET_URL'         , 'https://sourcefabricberlin.zendesk.com/hc/en-us/requests/new');
+define('FAQ_URL'                    , 'http://libretime.org/faq/');
+define('WHOS_USING_URL'             , 'https://github.com/orgs/LibreTime/people');
+define('TERMS_AND_CONDITIONS_URL'   , 'https://github.com/LibreTime/libretime/blob/master/README.md');
+define('PRIVACY_POLICY_URL'         , 'https://github.com/LibreTime/code-of-conduct/blob/master/CODE_OF_CONDUCT.md');
+define('USER_MANUAL_URL'            , 'http://libretime.org/manual/');
+define('ABOUT_AIRTIME_URL'          , 'http://libretime.org');
+define('AIRTIME_TRANSIFEX_URL'      , 'http://libretime.org/translating/');
+define('SUPPORT_TICKET_URL'         , 'https://github.com/LibreTime/libretime/issues');
 define('UI_REVAMP_EMBED_URL'        , 'https://www.youtube.com/embed/nqpNnCKGluY');
-define('UI_REVAMP_YOUTUBE_URL'      , 'https://www.youtube.com/watch?v=nqpNnCKGluY&feature=youtu.be');
+define('LIBRETIME_WHATS_NEW_URL'    , 'https://github.com/LibreTime/libretime/releases');
 
 define('LICENSE_VERSION'    , 'GNU AGPL v.3');
 define('LICENSE_URL'        , 'http://www.gnu.org/licenses/agpl-3.0-standalone.html');
@@ -33,8 +32,12 @@ define('LICENSE_URL'        , 'http://www.gnu.org/licenses/agpl-3.0-standalone.h
 define('AIRTIME_COPYRIGHT_DATE' , '2010-2015');
 define('AIRTIME_REST_VERSION'   , '1.1');
 define('AIRTIME_API_VERSION'    , '1.1');
-// XXX: it's important that we upgrade this every time we add an upgrade!
-define('AIRTIME_CODE_VERSION'   , '2.5.16');
+// XXX: it's important that we upgrade this on major version bumps, usually users get more exact info from VERSION in airtime root dir
+define('LIBRETIME_MAJOR_VERSION', '3');
+
+// grab values from env (i'll do this everywhere with a small function if we like it)
+define('LIBRETIME_CONF_DIR', getenv('LIBRETIME_CONF_DIR') ? getenv('LIBRETIME_CONF_DIR') : '/etc/airtime');
+define('LIBRETIME_LOG_DIR', getenv('LIBRETIME_LOG_DIR') ? getenv('LIBRETIME_LOG_DIR') : '/var/log/airtime');
 
 // Defaults
 define('DEFAULT_LOGO_PLACEHOLDER', 1);
@@ -102,11 +105,16 @@ define('UI_PLAYLISTCONTROLLER_OBJ_SESSNAME', 'PLAYLISTCONTROLLER_OBJ');
 define('UI_BLOCK_SESSNAME', 'BLOCK');*/
 
 //WHMCS integration
-define("WHMCS_API_URL", "https://account.sourcefabric.com/includes/api.php");
-define("SUBDOMAIN_WHMCS_CUSTOM_FIELD_NAME", "Choose your domain");
+define('LIBRETIME_ENABLE_WHMCS',            false);
+define('WHMCS_PASSWORD_RESET_URL',          'https://account.example.com/pwreset.php');
+define('WHMCS_API_URL'                    , 'https://account.example.org/includes/api.php');
+define('SUBDOMAIN_WHMCS_CUSTOM_FIELD_NAME', 'Choose your domain');
+
+//LiveChat integration
+define('LIBRETIME_ENABLE_LIVECHAT', false);
 
 //Sentry error logging
-define('SENTRY_CONFIG_PATH', '/etc/airtime-saas/sentry.airtime_web.ini');
+define('SENTRY_CONFIG_PATH', LIBRETIME_CONF_DIR . '/sentry.airtime_web.ini');
 
 //Provisioning status
 define('PROVISIONING_STATUS_SUSPENDED' , 'Suspended');
@@ -137,3 +145,6 @@ define('STATION_PODCAST_SERVICE_NAME', 'station_podcast');
 //define('IMPORTED_PODCAST', 1);
 
 define('ITUNES_XML_NAMESPACE_URL', 'http://www.itunes.com/dtds/podcast-1.0.dtd');
+
+// Billing configuration
+define('LIBRETIME_ENABLE_BILLING', false);

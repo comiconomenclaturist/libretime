@@ -1,8 +1,5 @@
 <?php
 
-require_once('WhmcsLoginController.php');
-require_once('CORSHelper.php');
-
 class LoginController extends Zend_Controller_Action
 {
 
@@ -27,7 +24,7 @@ class LoginController extends Zend_Controller_Action
         $stationLocale = Application_Model_Preference::GetDefaultLocale();
         
         //Enable AJAX requests from www.airtime.pro for the sign-in process.
-        CORSHelper::enableATProCrossOriginRequests($request, $response);
+        CORSHelper::enableCrossOriginRequests($request, $response);
 
         
         Application_Model_Locale::configureLocalization($request->getcookie('airtime_locale', $stationLocale));
@@ -48,7 +45,7 @@ class LoginController extends Zend_Controller_Action
         //uses separate layout without a navigation.
         $this->_helper->layout->setLayout('login');
 
-        $error = false;
+        $this->view->error = false;
         
         $baseUrl = Application_Common_OsPath::getBaseDir();
 
@@ -95,7 +92,7 @@ class LoginController extends Zend_Controller_Action
                     Application_Model_Preference::SetUserLocale($locale);
 
                     $this->_redirect('showbuilder');
-                } else {
+                } elseif (LIBRETIME_ENABLE_WHMCS) {
                     $email = $form->getValue('username');
                     $authAdapter = new WHMCS_Auth_Adapter("admin", $email, $password);
                     $auth = Zend_Auth::getInstance();
@@ -108,25 +105,16 @@ class LoginController extends Zend_Controller_Action
                         $this->_redirect('showbuilder');
                     }
                     else {
-                        $message = _("Wrong username or password provided. Please try again.");
-                        Application_Model_Subjects::increaseLoginAttempts($username);
-                        Application_Model_LoginAttempts::increaseAttempts($_SERVER['REMOTE_ADDR']);
-                        $form = new Application_Form_Login();                            
-                        $error = true;
-                        //Only show the captcha if you get your login wrong 4 times in a row.
-                        if (Application_Model_Subjects::getLoginAttempts($username) > 3)
-                        {
-                            $form->addRecaptcha();
-                        }
+                        $form = $this->loginError($username);
                     }
+                } else {
+                    $form = $this->loginError($username);
                 }
             }
         }
 
-        $this->view->message = $message;
-        $this->view->error = $error;
         $this->view->form = $form;
-        $this->view->airtimeVersion = Application_Model_Preference::GetAirtimeVersion();
+        $this->view->airtimeVersion = $CC_CONFIG['airtime_version'];
         $this->view->airtimeCopyright = AIRTIME_COPYRIGHT_DATE;
         if (isset($CC_CONFIG['demo'])) {
             $this->view->demo = $CC_CONFIG['demo'];
@@ -168,13 +156,16 @@ class LoginController extends Zend_Controller_Action
         if ($request->isPost()) {
             if ($form->isValid($request->getPost())) {
                 $query = CcSubjsQuery::create();
-                if (empty($form->username->getValue())) {
-                    $query->filterByDbEmail($form->email->getValue());
-                } else if (empty($form->email->getValue())) {
-                    $query->filterByDbLogin($form->username->getValue());
+                $username = $form->userName->getValue();
+                $email = $form->email->getValue();
+
+                if (empty($username)) {
+                    $query->filterByDbEmail($email);
+                } else if (empty($email)) {
+                    $query->filterByDbLogin($username);
                 } else {
-                    $query->filterByDbEmail($form->email->getValue())
-                        ->filterByDbLogin($form->username->getValue());
+                    $query->filterByDbEmail($email)
+                        ->filterByDbLogin($username);
                 }
                 $user = $query->findOne();
 
@@ -259,5 +250,25 @@ class LoginController extends Zend_Controller_Action
         }
 
         $this->view->form = $form;
+    }
+
+    /**
+     * populates view with results from a login error and adds a new form
+     *
+     * @param  String $username user that failed to login
+     * @return new form
+     */
+    private function loginError($username)
+    {
+        $this->view->message = _("Wrong username or password provided. Please try again.");
+        Application_Model_Subjects::increaseLoginAttempts($username);
+        Application_Model_LoginAttempts::increaseAttempts($_SERVER['REMOTE_ADDR']);
+        $form = new Application_Form_Login();                            
+        $this->view->error = true;
+        //Only show the captcha if you get your login wrong 4 times in a row.
+        if (Application_Model_Subjects::getLoginAttempts($username) > 3) {
+            $form->addRecaptcha();
+        }
+        return $form;
     }
 }

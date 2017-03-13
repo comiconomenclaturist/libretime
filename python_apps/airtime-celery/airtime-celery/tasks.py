@@ -8,6 +8,7 @@ import urlparse
 import posixpath
 import shutil
 import tempfile
+import traceback
 from mutagen.mp3 import MP3
 from mutagen.easyid3 import EasyID3
 import mutagen.id3
@@ -152,14 +153,17 @@ def podcast_download(id, url, callback_url, api_key, podcast_name):
             filename = get_filename(r)
             with tempfile.NamedTemporaryFile(mode ='wb+', delete=False) as audiofile:
                 shutil.copyfileobj(r.raw, audiofile)
-                #m = mutagen.File(audiofile.name, easy=True)
                 # currently hardcoded for mp3s may want to add support for oggs etc
                 m = MP3(audiofile.name, ID3=EasyID3)
-                #m = EasyID3(audiofile.name)
-                m['album'] = [podcast_name]
-		m.save()
+                logger.debug('podcast_download loaded mp3 {0}'.format(audiofile.name))
+                try:
+                    m['album']
+                except KeyError:
+                    logger.debug('setting new album name to {0} in podcast'.format(podcast_name.encode('ascii', 'ignore')))
+                    m['album'] = podcast_name
+                m.save()
                 filetypeinfo = m.pprint()
-                logger.info('filetypeinfo is {0}'.format(filetypeinfo))
+                logger.info('filetypeinfo is {0}'.format(filetypeinfo.encode('ascii', 'ignore')))
                 re = requests.post(callback_url, files={'file': (filename, open(audiofile.name, 'rb'))}, auth=requests.auth.HTTPBasicAuth(api_key, ''))
         re.raise_for_status()
         f = json.loads(re.content)  # Read the response from the media API to get the file id
@@ -167,7 +171,8 @@ def podcast_download(id, url, callback_url, api_key, podcast_name):
         obj['status'] = 1
     except Exception as e:
         obj['error'] = e.message
-        logger.info('Error during file download: {0}'.format(e.message))
+        logger.info('Error during file download: {0}'.format(e))
+        logger.debug('Original Traceback: %s' % (traceback.format_exc(e)))
         obj['status'] = 0
     return json.dumps(obj)
 

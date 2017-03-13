@@ -1,9 +1,5 @@
 <?php
 
-require_once 'formatters/LengthFormatter.php';
-require_once 'formatters/SamplerateFormatter.php';
-require_once 'formatters/BitrateFormatter.php';
-
 /**
  *  Application_Model_StoredFile class
  *
@@ -582,7 +578,7 @@ SQL;
      * by creating $con outside the function with beingTransaction() */
     /**
      * @param int $p_id
-     * @param \Doctrine\DBAL\Driver\PDOConnection $con
+     * @param Propel Connection
      *
      * @return Application_Model_StoredFile
      * @throws Exception

@@ -1,7 +1,5 @@
 <?php
 
-require_once 'formatters/LengthFormatter.php';
-
 class Application_Model_ShowInstance
 {
     private $_instanceId;
@@ -170,7 +168,6 @@ SQL;
         $this->_showInstance->setDbAutoPlaylistBuilt($bool)
             ->save();
     }
-
 
     public function updateScheduledTime()
     {

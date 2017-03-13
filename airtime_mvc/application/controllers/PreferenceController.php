@@ -46,6 +46,7 @@ class PreferenceController extends Zend_Controller_Action
                 Application_Model_Preference::SetDefaultFadeIn($values["stationDefaultFadeIn"]);
                 Application_Model_Preference::SetDefaultFadeOut($values["stationDefaultFadeOut"]);
                 Application_Model_Preference::SetAllow3rdPartyApi($values["thirdPartyApi"]);
+                Application_Model_Preference::SetAllowedCorsUrls($values["allowedCorsUrls"]);
                 Application_Model_Preference::SetDefaultLocale($values["locale"]);
                 Application_Model_Preference::SetDefaultTimezone($values["timezone"]);
                 Application_Model_Preference::SetWeekStartDay($values["weekStartDay"]);
@@ -68,9 +69,7 @@ class PreferenceController extends Zend_Controller_Action
                 Application_Model_Preference::setTuneinPartnerId($values["tunein_partner_id"]);
 
                 // SoundCloud Preferences
-		// Commenting out until working
-		/*
-                if (Billing::isStationPodcastAllowed()) {
+                if (Billing::isStationPodcastAllowed() && array_key_exists('SoundCloudLicense', $values)) {
                     Application_Model_Preference::setDefaultSoundCloudLicenseType($values["SoundCloudLicense"]);
                     Application_Model_Preference::setDefaultSoundCloudSharingType($values["SoundCloudSharing"]);
                 }

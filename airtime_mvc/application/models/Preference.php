@@ -1,8 +1,5 @@
 <?php
 
-require_once 'StreamSetting.php';
-require_once 'Cache.php';
-
 class Application_Model_Preference
 {
     
@@ -26,7 +23,6 @@ class Application_Model_Preference
      */
     private static function setValue($key, $value, $isUserValue = false)
     {
-        $cache = new Cache();
         $con = Propel::getConnection(CcPrefPeer::DATABASE_NAME);
 
         //We are using row-level locking in Postgres via "FOR UPDATE" instead of a transaction here
@@ -112,8 +108,6 @@ class Application_Model_Preference
             Logging::info("Database error: ".$e->getMessage());
             exit;
         }
-
-        $cache->store($key, $value, $isUserValue, $userId);
     }
 
     /**
@@ -146,8 +140,6 @@ class Application_Model_Preference
      */
     private static function getValue($key, $isUserValue = false, $forceDefault = false)
     {
-        $cache = new Cache();
-        
         try {
             
             $userId = null;
@@ -159,10 +151,6 @@ class Application_Model_Preference
                 }
             }
 
-            // If the value is already cached, return it
-            $res = $cache->fetch($key, $isUserValue, $userId);
-            if ($res !== false) return $res;
-           
             //Check if key already exists
             $sql = "SELECT COUNT(*) FROM cc_pref"
             ." WHERE keystr = :key";
@@ -201,7 +189,6 @@ class Application_Model_Preference
                 $res = ($result !== false) ? $result : "";
             }
             
-            $cache->store($key, $res, $isUserValue, $userId);
             return $res;
         } 
         catch (Exception $e) {
@@ -878,23 +865,12 @@ class Application_Model_Preference
         self::setValue("schema_version", $version);
     }
 
-    public static function GetAirtimeVersion()
-    {
-        if (defined('APPLICATION_ENV') && APPLICATION_ENV == "development" && function_exists('exec')) {
-            $version = exec("git rev-parse --short HEAD 2>/dev/null", $out, $return_code);
-            if ($return_code == 0) {
-                return self::getValue("system_version")."+".$version.":".time();
-            }
-        }
-
-        return self::getValue("system_version");
-    }
-
     public static function GetLatestVersion()
     {
+        $config = Config::getConfig();
         $latest = self::getValue("latest_version");
         if ($latest == null || strlen($latest) == 0) {
-            return self::GetAirtimeVersion();
+            return $config['airtime_version'];
         } else {
             return $latest;
         }
@@ -1585,7 +1561,7 @@ class Application_Model_Preference
      * @return int either 0 (public) or 1 (private)
      */
     public static function getStationPodcastPrivacy() {
-        if (!Billing::isStationPodcastAllowed()) {
+        if (LIBRETIME_ENABLE_BILLING === true && !Billing::isStationPodcastAllowed()) {
             // return private setting
             return 1;
         }
@@ -1600,17 +1576,8 @@ class Application_Model_Preference
     /**
      * Accessors for station bandwidth limit.
      */
-
     public static function getBandwidthLimit() {
-        $val = self::getValue("bandwidth_limit");
-        if (empty($val)) {
-            // Set and return the plan defaults
-            // TODO: remove this once all existing customers have this pref set
-//            $planType = self::GetPlanLevel();
-//            $val = Billing::$PLAN_TYPE_DEFAULTS[$planType]["bandwidth_limit"];
-//            self::setBandwidthLimit($val);
-        }
-        return $val;
+        return self::getValue("bandwidth_limit");
     }
 
     public static function setBandwidthLimit($value) {
@@ -1666,5 +1633,24 @@ class Application_Model_Preference
 
     public static function setBandwidthLimitUpdateTimer() {
         self::setValue("bandwidth_limit_update_timer", microtime(true));
+    }
+
+    /**
+     * Getter for CORS URLs
+     *
+     * @return string
+     */
+    public static function GetAllowedCorsUrls() {
+        return self::getValue('allowed_cors_urls');
+    }
+
+    /**
+     * Setter for CORS URLs
+     *
+     * @param string $value
+     * @return void
+     */
+    public static function SetAllowedCorsUrls($value) {
+        self::setValue('allowed_cors_urls', $value);
     }
 }

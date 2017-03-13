@@ -1,15 +1,12 @@
 <?php
 set_include_path(__DIR__.'/../../airtime_mvc/library' . PATH_SEPARATOR . get_include_path());
-//Zend framework
-if (file_exists('/usr/share/php/libzend-framework-php')){
-    set_include_path('/usr/share/php/libzend-framework-php' . PATH_SEPARATOR . get_include_path());
-}
+
 #require_once('Zend/Loader/Autoloader.php');
 class AirtimeInstall
 {
     const CONF_DIR_BINARIES = "/usr/lib/airtime";
     const CONF_DIR_WWW = "/usr/share/airtime";
-    const CONF_DIR_LOG = "/var/log/airtime";
+    const CONF_DIR_LOG = LIBRETIME_LOG_DIR;
     public static $databaseTablesCreated = false;
     public static function GetAirtimeSrcDir()
     {
@@ -188,33 +185,28 @@ class AirtimeInstall
         $CC_CONFIG = Config::getConfig();
         $database = $CC_CONFIG['dsn']['database'];
         $username = $CC_CONFIG['dsn']['username'];
-        #$command = "echo \"CREATE DATABASE $database OWNER $username\" | su postgres -c psql  2>/dev/null";
-        
+        $password = $CC_CONFIG['dsn']['password'];
+        $hostspec = $CC_CONFIG['dsn']['hostspec'];
+
         echo " * Creating Airtime database: " . $database . PHP_EOL;
-        
-        putenv("LC_ALL=en_CA.UTF-8"); //Squash warnings when running unit tests
-        $command = "su postgres -c \"psql -l | cut -f2 -d' ' | grep -w '{$database}'\";";
-        exec($command, $output, $rv);
-        if ($rv == 0) {
-            //database already exists
-            echo "Database already exists." . PHP_EOL;
-            return true;
+
+        $dbExists = false;
+        try {
+             $con = pg_connect('user='.$username.' password='.$password.' host='.$hostspec);
+
+             pg_query($con, 'CREATE DATABASE '.$database.' WITH ENCODING \'UTF8\' TEMPLATE template0 OWNER '.$username.';');
+
+        } catch (Exception $e) {
+            // rethrow if not a "database already exists" error
+            if ($e->getCode() != 2 && strpos($e->getMessage(), 'already exists') !== false) throw $e;
+            echo "  * Database already exists." . PHP_EOL;
+            $dbExists = true;
         }
-        $command = "sudo -i -u postgres psql postgres -c \"CREATE DATABASE ".$database." WITH ENCODING 'UTF8' TEMPLATE template0 OWNER ".$username."\"";
-        @exec($command, $output, $results);
-        if ($results == 0) {
+
+        if (!$dbExists) {
             echo "  * Database $database created.".PHP_EOL;
-        } else {
-            if (count($output) > 0) {
-                echo "  * Could not create database $database: ".PHP_EOL;
-                echo implode(PHP_EOL, $output);
-            }
-            else {
-                echo "  * Database $database already exists.".PHP_EOL;
-            }
         }
-        $databaseExisted = ($results != 0);
-        return $databaseExisted;
+        return $dbExists;
     }
     public static function InstallPostgresScriptingLanguage()
     {
@@ -243,23 +235,8 @@ class AirtimeInstall
         }
         AirtimeInstall::$databaseTablesCreated = true;
     }
-    public static function BypassMigrations($dir, $version)
-    {
-        $appDir = AirtimeInstall::GetAirtimeSrcDir();
-        $command = "php $appDir/library/doctrine/migrations/doctrine-migrations.phar ".
-                    "--configuration=$dir/../../DoctrineMigrations/migrations.xml ".
-                    "--db-configuration=$appDir/library/doctrine/migrations/migrations-db.php ".
-                    "--no-interaction --add migrations:version $version";
-        system($command);
-    }
-    public static function MigrateTablesToVersion($dir, $version)
-    {
-        $appDir = AirtimeInstall::GetAirtimeSrcDir();
-        $command = "php $appDir/library/doctrine/migrations/doctrine-migrations.phar ".
-                    "--configuration=$dir/../../DoctrineMigrations/migrations.xml ".
-                    "--db-configuration=$appDir/library/doctrine/migrations/migrations-db.php ".
-                    "--no-interaction migrations:migrate $version";
-        system($command);
+    public final static function UpdateDatabaseTables() {
+        UpgradeManager::doUpgrade();
     }
     public static function SetAirtimeVersion($p_version)
     {
@@ -275,10 +252,8 @@ class AirtimeInstall
     }
     public static function GetAirtimeVersion()
     {
-        $con = Propel::getConnection();
-        $sql = "SELECT valstr FROM cc_pref WHERE keystr = 'system_version' LIMIT 1";
-        $version = $con->query($sql)->fetchColumn(0);
-        return $version;
+        $config = Config::getConfig();
+        return $config['airtime_version'];
     }
     public static function DeleteFilesRecursive($p_path)
     {

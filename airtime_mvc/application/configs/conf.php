@@ -1,8 +1,10 @@
 <?php
 /* THIS FILE IS NOT MEANT FOR CUSTOMIZING.
  * PLEASE EDIT THE FOLLOWING TO CHANGE YOUR CONFIG:
- * /etc/airtime/airtime.conf
+ * LIBRETIME_CONF_DIR/airtime.conf
  */
+
+require_once __DIR__ . '/constants.php';
 
 class Config {
     private static $CC_CONFIG = null;
@@ -12,19 +14,11 @@ class Config {
         self::$rootDir = __DIR__."/../..";
         $CC_CONFIG = array(
                 /* ================================================ storage configuration */
-        
-                'soundcloud-client-id' => '2CLCxcSXYzx7QhhPVHN4A',
-                'soundcloud-client-secret' => 'pZ7beWmF06epXLHVUP1ufOg2oEnIt9XhE8l8xt0bBs',
-        
                 "rootDir" => self::$rootDir
         );
         
-        //In the unit testing environment, we always want to use our local airtime.conf in airtime_mvc/application/test:
-        if (getenv('AIRTIME_UNIT_TEST') == '1') {
-            $filename = "airtime.conf";
-        } else {
-            $filename = isset($_SERVER['AIRTIME_CONF']) ? $_SERVER['AIRTIME_CONF'] : "/etc/airtime/airtime.conf";
-        }
+        //In the unit testing environment, LIBRETIME_CONF_DIR will our local airtime.conf in airtime_mvc/application/test/conf:
+        $filename = isset($_SERVER['AIRTIME_CONF']) ? $_SERVER['AIRTIME_CONF'] : LIBRETIME_CONF_DIR . "/airtime.conf";
         
         $values = parse_ini_file($filename, true);
 
@@ -52,13 +46,13 @@ class Config {
 
         // Commented out for open-source version until cloud storage implemented
         // Parse separate conf file for cloud storage values
-        // $cloudStorageConfig = "/etc/airtime-saas/".$CC_CONFIG['dev_env']."/cloud_storage.conf";
-        // if (!file_exists($cloudStorageConfig)) {
+        $cloudStorageConfig = LIBRETIME_CONF_DIR . '/' . $CC_CONFIG['dev_env']."/cloud_storage.conf";
+        if (!file_exists($cloudStorageConfig)) {
             // If the dev env specific cloud_storage.conf doesn't exist default
             // to the production cloud_storage.conf
-        //    $cloudStorageConfig = "/etc/airtime-saas/production/cloud_storage.conf";
-        //}
-        //$cloudStorageValues = parse_ini_file($cloudStorageConfig, true);
+            $cloudStorageConfig = LIBRETIME_CONF_DIR . "/production/cloud_storage.conf";
+        }
+        $cloudStorageValues = parse_ini_file($cloudStorageConfig, true);
         
         //$CC_CONFIG["supportedStorageBackends"] = array('amazon_S3');
         //foreach ($CC_CONFIG["supportedStorageBackends"] as $backend) {
@@ -89,11 +83,11 @@ class Config {
         $CC_CONFIG['soundcloud-connection-retries'] = $values['soundcloud']['connection_retries'];
         $CC_CONFIG['soundcloud-connection-wait'] = $values['soundcloud']['time_between_retries'];
 
-        $globalAirtimeConfig = "/etc/airtime-saas/".$CC_CONFIG['dev_env']."/airtime.conf";
+        $globalAirtimeConfig = LIBRETIME_CONF_DIR . '/' . $CC_CONFIG['dev_env']."/airtime.conf";
         if (!file_exists($globalAirtimeConfig)) {
             // If the dev env specific airtime.conf doesn't exist default
             // to the production airtime.conf
-            $globalAirtimeConfig = "/etc/airtime/airtime.conf";
+            $globalAirtimeConfig = LIBRETIME_CONF_DIR . "/production/airtime.conf";
         }
         $globalAirtimeConfigValues = parse_ini_file($globalAirtimeConfig, true);
         // commented out soundcloud config until it can be tested
@@ -106,7 +100,6 @@ class Config {
             $CC_CONFIG['facebook-app-api-key'] = $globalAirtimeConfigValues['facebook']['facebook_app_api_key'];
         }
 
-
         if(isset($values['demo']['demo'])){
             $CC_CONFIG['demo'] = $values['demo']['demo'];
         }
@@ -114,10 +107,12 @@ class Config {
     }
     
     public static function setAirtimeVersion() {
-        $airtime_version = Application_Model_Preference::GetAirtimeVersion();
-        $uniqueid = Application_Model_Preference::GetUniqueId();
-        $buildVersion = @file_get_contents(self::$rootDir."/../VERSION");
-        self::$CC_CONFIG['airtime_version'] = md5($airtime_version.$buildVersion);
+        $version = @file_get_contents(self::$rootDir."/../VERSION");
+        if (!$version) {
+            // fallback to constant from constants.php if no other info is available
+            $version = LIBRETIME_MAJOR_VERSION;
+        }
+        self::$CC_CONFIG['airtime_version'] = trim($version);
     }
     
     public static function getConfig() {

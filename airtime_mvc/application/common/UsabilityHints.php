@@ -103,9 +103,8 @@ class Application_Common_UsabilityHints
                     "<a href=\"/schedule\">",
                     "</a>");
             }
-        } else if ($userIsOnShowbuilderPage && $userIsSuperAdmin) {
-// commented out for use not on airtime pro
-/*            $unpaidInvoice = Billing::checkForUnpaidInvoice();
+        } else if (LIBRETIME_ENABLE_BILLING === true && $userIsOnShowbuilderPage && $userIsSuperAdmin) {
+            $unpaidInvoice = Billing::checkForUnpaidInvoice();
             if ($unpaidInvoice != null) {
                 $invoiceUrl = "/billing/invoice?invoiceid=" . $unpaidInvoice['id'];
                 $amount = $unpaidInvoice['currencyprefix'] . $unpaidInvoice['total'];

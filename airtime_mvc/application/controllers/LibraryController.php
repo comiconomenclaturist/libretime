@@ -1,9 +1,5 @@
 <?php
 
-require_once 'formatters/LengthFormatter.php';
-require_once 'formatters/SamplerateFormatter.php';
-require_once 'formatters/BitrateFormatter.php';
-
 class LibraryController extends Zend_Controller_Action
 {
 
@@ -449,7 +445,7 @@ class LibraryController extends Zend_Controller_Action
         $this->_helper->layout->disableLayout();
 
 
-        if (!Billing::isStationPodcastAllowed()) {
+        if (LIBRETIME_ENABLE_BILLING === true && !Billing::isStationPodcastAllowed()) {
             $this->renderScript("podcast/featureupgrade-pane.phtml");
         }
 

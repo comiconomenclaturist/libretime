@@ -803,7 +803,7 @@ ALTER TABLE "cc_perms" ADD CONSTRAINT "cc_perms_subj_fkey"
     REFERENCES "cc_subjs" ("id")
     ON DELETE CASCADE;
 
-ALTER TABLE "cc_show" ADD CONSTRAINT "cc_playlist_fkey"
+ALTER TABLE "cc_show" ADD CONSTRAINT "cc_playlist_autoplaylist_fkey"
     FOREIGN KEY ("autoplaylist_id")
     REFERENCES "cc_playlist" ("id")
     ON DELETE SET NULL;

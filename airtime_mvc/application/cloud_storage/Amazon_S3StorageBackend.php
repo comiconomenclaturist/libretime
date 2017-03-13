@@ -1,8 +1,5 @@
 <?php
 
-require_once 'StorageBackend.php';
-require_once 'Billing.php';
-
 use Aws\S3\S3Client;
 
 class Amazon_S3StorageBackend extends StorageBackend
@@ -121,8 +118,14 @@ class Amazon_S3StorageBackend extends StorageBackend
 
     public function getFilePrefix()
     {
-        $hostingId = Billing::getClientInstanceId();
-        $filePrefix = substr($hostingId, -2)."/".$hostingId;
+        $filePrefix = '';
+        // only prefix files on S3 when billing is active since saas customers share a s3 bucket
+        // I'm not sure why the choice was made to put everything into one bucket
+        // We might refactor this to use a bucket per customer if we revisit S3
+        if (LIBRETIME_ENABLE_BILLING === true) {
+            $hostingId = Billing::getClientInstanceId();
+            $filePrefix = substr($hostingId, -2)."/".$hostingId;
+        }
         return $filePrefix;
     }
 }

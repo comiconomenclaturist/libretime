@@ -1,4 +1,5 @@
 #!/bin/bash -e
+
 #-e Causes bash script to exit if any of the installers
 #return with a non-zero return value.
 
@@ -36,6 +37,8 @@ showhelp () {
                 This will copy the Airtime application files, but you will need
                 to give your web user access to the given directory if it is 
                 not accessible
+    --web-port=WEB_PORT
+                Set what port the LibreTime interface should run on.
     -I, --in-place
                 Set the current Airtime directory as the web root
                 Note that you will need to give your web user permission to 
@@ -58,6 +61,7 @@ showversion () {
 
 web_user="www-data"
 web_root=""
+web_port="80"
 in_place="f"
 postgres="f"
 apache="f"
@@ -72,6 +76,8 @@ _q=0
 upgrade="f"
 dist=""
 code=""
+apache_bin="apache2"
+
 
 function verbose() {
     if [[ ${_v} -eq 1 ]]; then
@@ -206,6 +212,17 @@ while :; do
             echo 'ERROR: Must specify a non-empty "--web-root=WEB_ROOT" argument.' >&2
             exit 1
             ;;
+        --web-port)
+            echo 'ERROR: Please specify a port number.' >&2
+            exit 1
+            ;;
+        --web-port=)
+            echo 'ERROR: Please specify a port number.' >&2
+            exit 1
+            ;;
+        --web-port=?*)
+            web_port=${1#*=}
+            ;;
         --)
             shift
             break
@@ -278,13 +295,16 @@ if [ -z web_root -a ! -d web_root ]; then
     echo "$web_root doesn't exist!"
     exit 1
 fi
+echo -e "\n.____    ._____.               ___________.__                "
+echo "|    |   |__\_ |_________   ___\__    ___/|__| _____   ____  "
+echo "|    |   |  || __ \_  __ \_/ __ \|    |   |  |/     \_/ __ \ "
+echo "|    |___|  || \_\ \  | \/\  ___/|    |   |  |  Y Y  \  ___/ "
+echo "|_______ \__||___  /__|    \___  >____|   |__|__|_|  /\___  >"
+echo -e "        \/       \/            \/                  \/     \/\n"
 
-echo -e "\n   _____  .________________________.___   _____  ___________   "
-echo    "  /  _  \ |   \______   \__    ___/|   | /     \ \_   _____/     "
-echo    " /  /_\  \|   ||       _/ |    |   |   |/  \ /  \ |    __)_      "
-echo    "/    |    \   ||    |   \ |    |   |   /    Y    \|        \     "
-echo    "\____|__  /___||____|_  / |____|   |___\____|__  /_______  /     "
-echo -e "        \/            \/                       \/        \/    \n"
+if [ "$dist" = "centos" ]; then
+    apache_bin="httpd"
+fi
 
 if [ "$ignore_dependencies" = "f" ]; then
     set +e
@@ -305,11 +325,17 @@ if [ "$ignore_dependencies" = "f" ]; then
     else
         loudCmd "DEBIAN_FRONTEND=noninteractive apt-get -y -m --force-yes install $(grep -vE '^\s*#' ${SCRIPT_DIR}/installer/lib/requirements-ubuntu-trusty.apt | tr '\n' ' ')"
     fi
+    if [ "$in_place" = "t" ]; then
+        loudCmd "DEBIAN_FRONTEND=noninteractive apt-get -y -m --force-yes install git"
+    fi
     set -e
 else
-    checkCommandExists "apache2"
+    checkCommandExists "${apache_bin}"
     checkCommandExists "rabbitmqctl"
     checkCommandExists "psql"
+    if [ "$in_place" = "t" ]; then
+        checkCommandExists "git"
+    fi
 fi
 
 # Check if composer exists and install if it doesn't
@@ -318,8 +344,10 @@ eval hash "composer" 2>/dev/null
 commandFound=$?
 set -e
 if [[ ! ${commandFound} -eq 0 ]]; then
-    curl -sS https://getcomposer.org/installer | php
-    mv composer.phar /usr/local/bin/composer
+    curl -sS https://getcomposer.org/installer > get-composer.php
+    php ./get-composer.php --install-dir=/usr/local/bin --filename=composer
+    rm get-composer.php
+    PATH="${PATH}:/usr/local/bin"
 fi
 
 # Run composer (install PHP dependencies) and create a VERSION file
@@ -377,18 +405,16 @@ if [ "$in_place" = "t" ]; then
     web_root=${AIRTIMEROOT}/airtime_mvc/public
 elif [ -n "$web_root" ]; then
     verbose "\n * Creating Apache web root directory..."
-    cp -R ${AIRTIMEROOT}/airtime_mvc/* ${web_root}
-    # added the following line because the vendor files aren't otherwise installed
-    cp -R vendor ${web_root}/../
-    web_root=${web_root}/public/
+    cp -R ${AIRTIMEROOT}/airtime_mvc ${web_root}
+    cp -R ${AIRTIMEROOT}/vendor ${web_root}
+    web_root=${web_root}/airtime_mvc/public/
 else
-    verbose "\n * Creating default Apache web root directory /usr/share/airtime/..."
-    web_root="/usr/share/airtime"
+    verbose "\n * Creating default Apache web root directory /usr/share/airtime/php..."
+    web_root="/usr/share/airtime/php"
     mkdir -p ${web_root}
-    cp -R ${AIRTIMEROOT}/airtime_mvc/* ${web_root}
-    # added following line because the vendor files aren't otherwise installed
-    cp -R vendor ${web_root}/../
-    web_root=${web_root}/public/
+    cp -R ${AIRTIMEROOT}/airtime_mvc ${web_root}
+    cp -R ${AIRTIMEROOT}/vendor ${web_root}
+    web_root=${web_root}/airtime_mvc/public/
 fi
 verbose "...Done"
 
@@ -396,9 +422,13 @@ if [ "$apache" = "t" ]; then
     loud "\n-----------------------------------------------------"
     loud "                * Configuring Apache *                "
     loud "-----------------------------------------------------"
+    apache_sitedir="/etc/apache2/sites-available/"
+    if [ "$dist" = "centos" ]; then
+        apache_sitedir="/etc/httpd/conf.d/"
+    fi
 
     set +e
-    apache2 -v | grep "2\.4" > /dev/null
+    $apache_bin -v | grep "2\.4" > /dev/null
     apacheversion=$?
     set -e
 
@@ -414,21 +444,35 @@ if [ "$apache" = "t" ]; then
     # install apache, we should overwrite any existing configuration. If we don't do this, doing
     # an in-place installation over an old Airtime install (which installs to /usr/share by default)
     # will fail
-    if [ "$upgrade" = "t" -o ! -f /etc/apache2/sites-available/${airtimeconfigfile} ]; then
+    if [ "$upgrade" = "t" -o ! -f ${apache_sitedir}${airtimeconfigfile} ]; then
         verbose "\n * Creating Apache config for Airtime..."
-        
-        if [ "$apacheversion" != "1" ]; then
-            sed -e "s@WEB_ROOT@${web_root}@g" ${SCRIPT_DIR}/installer/apache/airtime-vhost-2.4 > /etc/apache2/sites-available/${airtimeconfigfile}
-        else
-            sed -e "s@WEB_ROOT@${web_root}@g" ${SCRIPT_DIR}/installer/apache/airtime-vhost > /etc/apache2/sites-available/${airtimeconfigfile}
+        listen_port=""
+        if [ "$web_port" != "80" ]; then
+            listen_port="Listen ${web_port}"
         fi
-        loudCmd "a2dissite 000-default"
+        
+        apache_template_file=${SCRIPT_DIR}/installer/apache/airtime-vhost-2.4
+        if [ "$apacheversion" = "1" ]; then
+            # fall back to apache 1 config
+            apache_template_file=${SCRIPT_DIR}/installer/apache/airtime-vhost
+        fi
+        sed \
+            -e "s@WEB_PORT_LISTEN@${listen_port}@g" \
+            -e "s@WEB_PORT@${web_port}@g" \
+            -e "s@WEB_ROOT@${web_root}@g" \
+            ${apache_template_file} > ${apache_sitedir}${airtimeconfigfile}
+
+        if [ "$dist" != "centos" ]; then
+            loudCmd "a2dissite 000-default"
+        fi 
         # If Airtime was previously installed with apt, the vhost file name is different,
         # so we need to specifically disable it.
         if [ -f "/etc/apache2/sites-available/${oldconfigfile}" ]; then
             loudCmd "a2dissite airtime-vhost"
         fi
-        loudCmd "a2ensite airtime"
+        if [ "$dist" != "centos" ]; then
+            loudCmd "a2ensite airtime"
+        fi
     else
         verbose "\nApache config for Airtime already exists, skipping"
     fi
@@ -448,9 +492,15 @@ if [ "$icecast" = "t" ]; then
     loud "-----------------------------------------------------"
     
     verbose "\n * Enabling Icecast 2..."
-    sed -i 's/ENABLE=false/ENABLE=true/g' /etc/default/icecast2
+    icecast_unit_name="icecast2"
+    if [ "$dist" != "centos" ]; then
+        sed -i 's/ENABLE=false/ENABLE=true/g' /etc/default/icecast2
+    else
+        icecast_unit_name="icecast"
+    fi
     set +e
-    loudCmd "service icecast2 start"
+    # restart in case icecast was already started (like is the case on debian)
+    loudCmd "service ${icecast_unit_name} restart"
     set -e
     verbose "...Done"
 fi
@@ -462,6 +512,18 @@ loud "-----------------------------------------------------"
 verbose "\n * Installing necessary python services..."
 loudCmd "pip install setuptools --upgrade"
 verbose "...Done"
+
+# Ubuntu trusty needs a workaround for python version SSL downloads
+# This affects all python installs where python < 2.7.9
+use_pyopenssl=""
+if [ "$dist" != "debian" ] || [ "$code" = "wheezy" ]; then
+    use_pyopenssl="t"
+fi
+if [ "$use_pyopenssl" = "t" ]; then
+    verbose "\n * Installing pyOpenSSL and ca db for SNI support..."
+    loudCmd "pip install pyOpenSSL cryptography idna certifi --upgrade"
+    verbose "...Done"
+fi
 
 verbose "\n * Creating /run/airtime..."
 mkdir -p /run/airtime
@@ -483,10 +545,29 @@ verbose "...Done"
 
 verbose "\n * Installing airtime-celery..."
 loudCmd "python ${AIRTIMEROOT}/python_apps/airtime-celery/setup.py install"
+# Make the airtime log directory group-writable
+loudCmd "chmod 775 /var/log/airtime"
+# Create the Celery user
+if [ "$dist" = "centos" ]; then
+    loudCmd "id celery || adduser --no-create-home -c 'LibreTime Celery' -r celery || true"
+    loudCmd "systemctl enable airtime-celery"
+else
+    loudCmd "id celery || adduser --no-create-home --gecos 'LibreTime Celery' --disabled-login --firstuid 1 --lastuid 999 celery"
+    loudCmd "update-rc.d airtime-celery defaults"
+fi
+# Add celery to the www-data group
+loudCmd "usermod -G ${web_user} -a celery"
+
+if [ "$dist" = "ubuntu" ]; then
+    loudCmd "initctl reload-configuration"
+fi
 verbose "...Done"
 
 verbose "\n * Installing airtime_analyzer..."
 loudCmd "python ${AIRTIMEROOT}/python_apps/airtime_analyzer/setup.py install --install-scripts=/usr/bin"
+if [ "$dist" = "ubuntu" ]; then
+    loudCmd "initctl reload-configuration"
+fi
 verbose "...Done"
 
 for i in /etc/init/airtime*.template; do
@@ -496,19 +577,30 @@ for i in /etc/init/airtime*.template; do
 done
 
 set +e
-loudCmd "initctl reload-configuration"
+if [ "$dist" = "ubuntu" ]; then
+    loudCmd "initctl reload-configuration"
+fi
 
 # airtime-celery only has an init.d startup script
-loudCmd "update-rc.d airtime-celery defaults"       # Start at bootup, on Debian
+if [ "$dist" = "centos" ]; then
+    loudCmd "systemctl enable airtime-celery"
+else
+    loudCmd "update-rc.d airtime-celery defaults"       # Start at bootup, on Debian
+fi 
 
 # On Ubuntu, we already have the upstart configs, so this is redundant
 # and causes multiple processes to spawn on startup
-if [ "$dist" != "ubuntu" ]; then
+if [ "$dist" = "debian" ]; then
     loudCmd "systemctl daemon-reload" #systemd hipsters
 
     loudCmd "update-rc.d airtime-playout defaults"      # Start at bootup, on Debian
     loudCmd "update-rc.d airtime-liquidsoap defaults"   # Start at bootup, on Debian
     loudCmd "update-rc.d airtime_analyzer defaults"     # Start at bootup, on Debian
+fi
+if [ "$dist" = "centos" ]; then
+    loudCmd "systemctl enable airtime-playout"
+    loudCmd "systemctl enable airtime-liquidsoap"
+    loudCmd "systemctl enable airtime_analyzer"
 fi
 set -e
 
@@ -534,15 +626,21 @@ chmod -R a+x /var/tmp/airtime
 chown -R ${web_user}:${web_user} /var/tmp/airtime/
 
 # PHP Config File for Apache
-if [ ! -f "/etc/php5/apache2/conf.d/airtime.ini" ]; then
-    verbose "\n * Creating Airtime PHP config for Apache..."
-    cp ${SCRIPT_DIR}/installer/php/airtime.ini /etc/php5/apache2/conf.d/airtime.ini
+libretime_phpini="/etc/php5/apache2/conf.d/airtime.ini"
+if [ "$dist" = "centos" ]; then
+    libretime_phpini="/etc/php.d/airtime.ini"
+fi
+if [ ! -f "${libretime_phpini}" ]; then
+    verbose "\n * Creating LibreTime PHP config for Apache..."
+    cp ${SCRIPT_DIR}/installer/php/airtime.ini ${libretime_phpini}
 else
     verbose "\nAirtime PHP config for Apache already exists, skipping"
 fi
 
 # Enable Apache modules
-loudCmd "a2enmod rewrite php5"
+if [ "$dist" != "centos" ]; then
+    loudCmd "a2enmod rewrite php5"
+fi
 
 loud "\n-----------------------------------------------------"
 loud "              * Configuring PostgreSQL *              "
@@ -613,16 +711,14 @@ if [ ! -d "/etc/airtime" ]; then
 
     verbose "\n * Creating /etc/airtime/ directory..."
     mkdir /etc/airtime
-fi
-if [ ! -d "/etc/airtime-saas" ]; then
-    verbose "\n * Creating /etc/airtime-saas/ directory..."
-    mkdir /etc/airtime-saas
-    # Default saas directory for the analyzer, cloud storage, and celery
-    mkdir -p /etc/airtime-saas/production
+    # workaround for reintegrated airtime-saas dir, will get removed after we refactored config loading
+    ln -s /etc/airtime/ /etc/airtime/production
+    # put the default cloud_storage.conf using local file storage into directory
+    cp ${AIRTIMEROOT}/airtime_mvc/build/cloud_storage.conf /etc/airtime/cloud_storage.conf
 fi
 
+
 chown -R ${web_user}:${web_user} /etc/airtime
-chown -R ${web_user}:${web_user} /etc/airtime-saas
 
 if [ ! -d "/srv/airtime" ]; then
     mkdir -p /srv/airtime
@@ -658,9 +754,18 @@ if [ "$ignore_dependencies" = "f" ]; then
 fi
 
 verbose "\n * Reloading apache..."
-loudCmd "service apache2 reload 2>/dev/null"
+if [ "$dist" != "centos" ]; then
+    loudCmd "service ${apache_bin} reload 2>/dev/null"
+    verbose "...Done"
 
-IP=$(ifconfig eth0 2>/dev/null|awk '/inet addr:/ {print $2}'|sed 's/addr://')
+    IP=$(ifconfig eth0 2>/dev/null|awk '/inet addr:/ {print $2}'|sed 's/addr://')
+else
+    verbose "systemctl restart ${apache_bin} 2>/dev/null"
+    loudCmd "systemctl restart ${apache_bin} 2>/dev/null"
+    verbose "...Done"
+
+    IP=$(ip -o -4 address show dev eth0 | grep -Po 'inet \K[\d.]+')
+fi
 
 echo -e "\n-----------------------------------------------------"
 echo    "                * Basic Setup DONE! *                "

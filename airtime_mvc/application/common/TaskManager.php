@@ -223,7 +223,6 @@ class CeleryTask implements AirtimeTask {
 }
 
 /**
- * 
  * Class AutoPlaylistTask
  *
  * Checks for shows with an autoplaylist that needs to be filled in
@@ -231,7 +230,6 @@ class CeleryTask implements AirtimeTask {
  */
 class AutoPlaylistTask implements AirtimeTask
 {
-
     /**
      * Checks whether or not the autoplaylist polling interval has passed
      *
@@ -250,8 +248,6 @@ class AutoPlaylistTask implements AirtimeTask
         AutoPlaylistManager::buildAutoPlaylist();
     }
 }
-
-
 
 /**
  * Class PodcastTask
@@ -381,9 +377,7 @@ class TaskFactory {
      * @return bool true if the class $c implements AirtimeTask
      */
     private static function _isTask($c) {
-        $reflect = new ReflectionClass($c);
-        $clazz = version_compare(phpversion(), '5.5.0', '<') ? "AirtimeTask" : AirtimeTask::class;
-        return $reflect->implementsInterface($clazz);
+        return array_key_exists('AirtimeTask', class_implements($c));
     }
 
     /**

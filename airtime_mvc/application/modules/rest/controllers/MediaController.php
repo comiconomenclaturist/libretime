@@ -1,7 +1,5 @@
 <?php
 
-require_once 'ProxyStorageBackend.php';
-
 class Rest_MediaController extends Zend_Rest_Controller
 {
     public function init()
@@ -10,6 +8,16 @@ class Rest_MediaController extends Zend_Rest_Controller
 
         // Remove reliance on .phtml files to render requests
         $this->_helper->viewRenderer->setNoRender(true);
+    }
+
+    /**
+     * headAction is needed as it is defined as an abstract function in the base controller
+     *
+     * @return void
+     */
+    public function headAction()
+    {
+        Logging::info("HEAD action received");
     }
     
     public function indexAction()
@@ -76,7 +84,7 @@ class Rest_MediaController extends Zend_Rest_Controller
             }
             Application_Service_MediaService::streamFileDownload($id, $inline);
         }
-        catch (FileNotFoundException $e) {
+        catch (LibreTimeFileNotFoundException $e) {
             $this->fileNotFoundResponse();
             Logging::error($e->getMessage());
         }
@@ -99,7 +107,7 @@ class Rest_MediaController extends Zend_Rest_Controller
                 ->setHttpResponseCode(200)
                 ->appendBody(json_encode(CcFiles::getSanitizedFileById($id)));
         }
-        catch (FileNotFoundException $e) {
+        catch (LibreTimeFileNotFoundException $e) {
             $this->fileNotFoundResponse();
             Logging::error($e->getMessage());
         }
@@ -121,7 +129,19 @@ class Rest_MediaController extends Zend_Rest_Controller
         }
 
         try {
-            $sanitizedFile = CcFiles::createFromUpload($this->getRequest()->getPost());
+            // REST uploads are not from Zend_Form, hence we handle them using Zend_File_transfer directly
+            $upload = new Zend_File_Transfer();
+            // this error should not really get hit, letting the user know if it does is nice for debugging
+            // see: https://github.com/LibreTime/libretime/issues/3#issuecomment-281143417
+            if (!$upload->isValid('file')) {
+                throw new Exception("invalid file uploaded");
+            }
+            $fileInfo = $upload->getFileInfo('file');
+            // this should have more info on any actual faults detected by php
+            if ($fileInfo['file']['error']) {
+                throw new Exception(sprintf('File upload error: %s', $fileInfo['file']['error']));
+            }
+            $sanitizedFile = CcFiles::createFromUpload($fileInfo);
             $this->getResponse()
                 ->setHttpResponseCode(201)
                 ->appendBody(json_encode($sanitizedFile));
@@ -160,7 +180,7 @@ class Rest_MediaController extends Zend_Rest_Controller
             $this->invalidDataResponse();
             Logging::error($e->getMessage());
         }
-        catch (FileNotFoundException $e) {
+        catch (LibreTimeFileNotFoundException $e) {
             $this->fileNotFoundResponse();
             Logging::error($e->getMessage());
         }
@@ -181,7 +201,7 @@ class Rest_MediaController extends Zend_Rest_Controller
             $this->getResponse()
                 ->setHttpResponseCode(204);
         }
-        catch (FileNotFoundException $e) {
+        catch (LibreTimeFileNotFoundException $e) {
             $this->fileNotFoundResponse();
             Logging::error($e->getMessage());
         }

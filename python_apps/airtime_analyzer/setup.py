@@ -14,7 +14,8 @@ if '--no-init-script' in sys.argv:
     data_files = []
     sys.argv.remove('--no-init-script') # super hax
 else:
-    data_files = [('/etc/init', ['install/upstart/airtime_analyzer.conf'])]
+    data_files = [('/etc/init', ['install/upstart/airtime_analyzer.conf']),
+                  ('/etc/init.d', ['install/sysvinit/airtime_analyzer'])]
     print data_files
 
 setup(name='airtime_analyzer',
@@ -48,11 +49,7 @@ setup(name='airtime_analyzer',
       zip_safe=False,
       data_files=data_files)
 
-# Reload the initctl config so that "service start airtime_analyzer" works
+# Remind users to reload the initctl config so that "service start airtime_analyzer" works
 if data_files:
-    print "Reloading initctl configuration"
-    call(['initctl', 'reload-configuration'])
-    print "Run \"sudo service airtime_analyzer restart\" now."
-
-
-# TODO: Should we start the analyzer here or not?
+    print "Remember to reload the initctl configuration"
+    print "Run \"sudo initctl reload-configuration; sudo service airtime_analyzer restart\" now."
